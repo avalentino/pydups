@@ -10,6 +10,7 @@ Usage
 -----
 
 ::
+
     usage: pydups [-h] [--version] [-s] [-l] [--format {json,pprint,custom}]
                   [-k {name,name_and_size,md5}] [--clean] [-c CACHEFILE]
                   [-o OUTPUT] [-v]
