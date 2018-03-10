@@ -239,6 +239,8 @@ class InvalidCacheError(RuntimeError):
 
 
 class DirEntryStore(object):
+    #__slots__ = ['name', 'path', '_is_dir', '_is_file''_is_symlink', '_stat']
+
     def __init__(self, name, path, is_dir, is_file, is_symlink, statresult):
         self.name = name
         self.path = path
@@ -339,7 +341,7 @@ def get_parser():
         Symbolic links are always ignored.
         By default duplicte file names are searched but the criterion can
         be customized using the "-k" ("--key") parameter''',
-        epilog='Copyright (C) 2016-2017 Antonio Valentino '
+        epilog='Copyright (C) 2016-2018 Antonio Valentino '
                '<antonio.valentino@tiscali.it>')
 
     parser.add_argument(
