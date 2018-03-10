@@ -382,9 +382,7 @@ def get_parser():
         help='print verbose help messages (default: %(default)s)')
 
     parser.add_argument(
-        'dataroot', default='.', nargs='?',
-        help='path to the root of the directory tree to scan '
-             '(default: "%(default)s")')
+        'dataroot', help='path to the root of the directory tree to scan')
 
     return parser
 

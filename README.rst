@@ -14,7 +14,7 @@ Usage
     usage: pydups [-h] [--version] [-s] [-l] [--format {json,pprint,custom}]
                   [-k {name,name_and_size,md5}] [--clean] [-c CACHEFILE]
                   [-o OUTPUT] [-v]
-                  [dataroot]
+                  dataroot
 
     Search all duplicate files in the specified directories.
     Symbolic links are always ignored.
@@ -23,7 +23,6 @@ Usage
 
     positional arguments:
       dataroot              path to the root of the directory tree to scan
-                            (default: ".")
 
     optional arguments:
       -h, --help            show this help message and exit
