@@ -92,15 +92,11 @@ DEBUG = False
 def scantree(path, follow_symlinks=False):
     '''Recursively yield DirEntry objects for given directory.'''
 
-    has_yield_from = sys.version_info >= (3, 3)
-
     for entry in scandir(path):
         if entry.is_dir(follow_symlinks=follow_symlinks):
-            if has_yield_from:
-                yield from scantree(entry.path, follow_symlinks)
-            else:
-                for entry in scantree(entry.path, follow_symlinks):
-                    yield entry
+            # yield from scantree(entry.path, follow_symlinks)
+            for entry in scantree(entry.path, follow_symlinks):
+                yield entry
         else:
             yield entry
 
