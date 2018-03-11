@@ -234,7 +234,7 @@ class InvalidCacheError(RuntimeError):
 
 
 class DirEntryStore(object):
-    #__slots__ = ['name', 'path', '_is_dir', '_is_file''_is_symlink', '_stat']
+    __slots__ = ['name', 'path', '_is_dir', '_is_file''_is_symlink', '_stat']
 
     def __init__(self, name, path, is_dir, is_file, is_symlink, statresult):
         self.name = name
