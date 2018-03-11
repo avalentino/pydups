@@ -5,6 +5,7 @@ from __future__ import print_function
 
 import io
 import os
+import re
 import sys
 import json
 import math
@@ -82,17 +83,29 @@ __version__ = '1.0.1.dev0'
 PROG = 'pydups'
 
 IGNORE_PATTERNS = (
-    '.listing',
-    '.DS_Store',
+    '.*',
+    'cache*',
 )
 
 DEBUG = False
 
 
-def scantree(path, follow_symlinks=False):
+def scantree(path, follow_symlinks=False, ignore_patterns=IGNORE_PATTERNS):
     '''Recursively yield DirEntry objects for given directory.'''
 
+    if ignore_patterns:
+        pattern = '|'.join(fnmatch.translate(p) for p in ignore_patterns)
+    else:
+        # does not match anything
+        pattern = '-^'
+
+    pattern = re.compile(pattern)
+
     for entry in scandir(path):
+        if pattern.match(entry.name):
+            logging.debug('skipping %r', entry.path)
+            continue
+
         if entry.is_dir(follow_symlinks=follow_symlinks):
             # yield from scantree(entry.path, follow_symlinks)
             for entry in scantree(entry.path, follow_symlinks):
@@ -193,7 +206,7 @@ def scan_duplicates(dataroot, keyfunc=name_key,
                     ignore_patterns=IGNORE_PATTERNS):
     scanned_files = 0
     data = defaultdict(list)
-    for entry in scantree(dataroot):
+    for entry in scantree(dataroot, ignore_patterns):
         scanned_files += 1
         if entry.is_file(follow_symlinks=False):
             k = keyfunc(entry)
@@ -204,12 +217,6 @@ def scan_duplicates(dataroot, keyfunc=name_key,
         val = data[key]
         if len(val) < 2:
             del data[key]
-        else:
-            basename = val[0].name
-            for pattern in ignore_patterns:
-                if fnmatch.fnmatch(basename, pattern):
-                    del data[key]
-                    break
 
     return DuplicateScanResult(data, scanned_files, keyfunc.__name__)
 
