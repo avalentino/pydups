@@ -202,46 +202,8 @@ def md5_key(entry):
     return md5.hexdigest()
 
 
-def scan_duplicates(dataroot, keyfunc=name_key,
-                    ignore_patterns=IGNORE_PATTERNS):
-    scanned_files = 0
-    data = defaultdict(list)
-    for entry in scantree(dataroot, ignore_patterns):
-        scanned_files += 1
-        if entry.is_file(follow_symlinks=False):
-            k = keyfunc(entry)
-            data[k].append(entry)
-
-    # remove non duplicates
-    for key in list(data.keys()):  # note: copy keys
-        val = data[key]
-        if len(val) < 2:
-            del data[key]
-
-    return DuplicateScanResult(data, scanned_files, keyfunc.__name__)
-
-
-def clean_duplicates(duplicates):
-    for val in duplicates.values():
-        if len(val) < 2:
-            continue
-
-        src = val[0]
-        for dst in val[1:]:
-            if DEBUG:
-                shutil.move(dst, dst + '_bak')
-            else:
-                os.remove(dst)
-            relative_src = os.path.relpath(src, os.path.dirname(dst))
-            os.symlink(relative_src, dst)
-
-
-class InvalidCacheError(RuntimeError):
-    pass
-
-
 class DirEntryStore(object):
-    __slots__ = ['name', 'path', '_is_dir', '_is_file''_is_symlink', '_stat']
+    __slots__ = ['name', 'path', '_is_dir', '_is_file', '_is_symlink', '_stat']
 
     def __init__(self, name, path, is_dir, is_file, is_symlink, statresult):
         self.name = name
@@ -276,11 +238,161 @@ class DirEntryStore(object):
 
         return self._stat
 
-    @staticmethod
-    def from_entry(entry):
-        return DirEntryStore(entry.name, entry.path,
-                             entry.is_dir(), entry.is_file(),
-                             entry.is_symlink(), entry.stat())
+    @classmethod
+    def from_entry(cls, entry):
+        return cls(entry.name, entry.path, entry.is_dir(), entry.is_file(),
+                   entry.is_symlink(), entry.stat())
+
+    def to_dict(self):
+        return dict(
+            name=self.name, path=self.path, is_dir=self._is_dir,
+            is_file=self._is_file, is_symlink=self._is_symlink,
+            statresult=self._statresult,
+        )
+
+    def __eq__(self, other):
+        return (
+            other.name == self.name and
+            other.path == self.path and
+            other._is_dir == self._is_dir and
+            other._is_file == self._is_file and
+            other._is_symlink == self._is_symlink and
+            other._statresult == self._statresult
+        )
+
+
+class DbEntry(object):
+    __slats__ = ['direntry', 'md5']
+
+    def __init__(self, direntry, md5=None):
+        if isinstance(direntry, dict):
+            direntry = DirEntryStore(**direntry)
+        elif not isinstance(direntry, DirEntryStore):
+            # assume os.DirEntry
+            direntry = DirEntryStore.from_entry(direntry)
+
+        self.direntry = direntry
+        self.md5 = md5
+
+    def to_dict(self):
+        return dict(
+            direntry=self.direntry.to_dict(),
+            md5=self.md5,
+        )
+
+
+class DB(object):
+    def __init__(self, data=None):
+        if data is None:
+            data = {}
+
+        self.data = data
+
+    def update(self, dataroot, ignore_patterns=IGNORE_PATTERNS,
+               checksum=False):
+        cache = self.data  # shortcut
+        data = {}
+
+        for entry in scantree(dataroot, ignore_patterns):
+            if entry.is_file(follow_symlinks=False):
+                entry = DirEntryStore.from_entry(entry)
+                if entry.path in cache:
+                    cache_entry = data[entry.path]
+                    if entry == cache_entry.direntry:
+                        if ((checksum and cache_entry.md5 is not None) or
+                                not checksum):
+                            data[entry.path] = cache_entry
+                            continue
+
+                md5 = md5_key(entry) if checksum else None
+                data[entry.path] = DbEntry(entry, md5)
+
+        self.clean(dataroot)
+        self.data.update(data)
+
+        return data
+
+    def clean(self, path=None):
+        if path is None:
+            self.data.reset()
+        else:
+            cache = self.data  # shortcut
+            for key in cache:
+                if key.startswith(path):
+                    del cache[key]
+
+    def load(self, cachefile, fmt='pickle'):
+        if fmt == 'pickle':
+            with open(cachefile, 'rb') as fd:
+                cache = pickle.load(fd)
+        elif fmt == 'json':
+            import json
+            with open(cachefile, 'rb') as fd:
+                cache = json.load(fd)
+        else:
+            raise ValueError('invalid format: {!r}'.format(fmt))
+
+        for key, val in cache:
+            self.data[key] = DbEntry(**val)
+
+    def save(self, cachefile, fmt='pickle'):
+        cache = {}
+        for key, val in self.data:
+            cache[key] = val.to_dict()
+
+        if fmt == 'pickle':
+            with open(cachefile, 'wb') as fd:
+                pickle.dump(cache, fd, protocol=0)
+        elif fmt == 'json':
+            import json
+            with open(cachefile, 'wb') as fd:
+                json.dump(cache, fd)
+        else:
+            raise ValueError('invalid format: {!r}'.format(fmt))
+
+
+def scan_duplicates(dataroot, keyfunc=name_key,
+                    ignore_patterns=IGNORE_PATTERNS):
+
+    checksum = True if keyfunc is md5_key else False
+    db = DB()
+    db.update(dataroot, ignore_patterns, checksum)
+
+    scanned_files = len(db.data)
+
+    data = defaultdict(list)
+    for dbentry in db.data.values():
+        entry = dbentry.direntry
+        if entry.is_file(follow_symlinks=False):
+            k = keyfunc(entry)
+            data[k].append(entry)
+
+    # remove non duplicates
+    for key in list(data.keys()):  # note: copy keys
+        val = data[key]
+        if len(val) < 2:
+            del data[key]
+
+    return DuplicateScanResult(data, scanned_files, keyfunc.__name__)
+
+
+def clean_duplicates(duplicates):
+    for val in duplicates.values():
+        if len(val) < 2:
+            continue
+
+        src = val[0]
+        for dst in val[1:]:
+            if DEBUG:
+                shutil.move(dst, dst + '_bak')
+            else:
+                os.remove(dst)
+            relative_src = os.path.relpath(src, os.path.dirname(dst))
+            os.symlink(relative_src, dst)
+
+
+class InvalidCacheError(RuntimeError):
+    pass
 
 
 # Cache structure
