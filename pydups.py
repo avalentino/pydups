@@ -404,7 +404,7 @@ def scan_duplicates(dataroot, keyfunc=name_key,
     return db.find_duplicates(keyfunc)
 
 
-def clean_duplicates(duplicates):
+def clean_duplicates(duplicates, replace_with_links=False):
     for val in duplicates.values():
         if len(val) < 2:
             logging.warning('not nuplicate entry for {!r}'.format(val))
@@ -413,11 +413,15 @@ def clean_duplicates(duplicates):
         src = val[0]
         for dst in val[1:]:
             if DEBUG:
-                shutil.move(dst, dst + '_bak')
+                shutil.move(dst.path, dst.path + '_bak')
             else:
-                os.remove(dst)
-            relative_src = os.path.relpath(src, os.path.dirname(dst))
-            os.symlink(relative_src, dst)
+                logging.info('remove %s', dst.path)
+                os.remove(dst.path)
+
+            if replace_with_links:
+                relative_src = os.path.relpath(src.path,
+                                               os.path.dirname(dst.path))
+                os.symlink(relative_src, dst.path)
 
 
 def get_parser():
@@ -548,7 +552,8 @@ def main():
             print(data)
 
     if args.clean:
-        clean_duplicates(result.data)
+        clean_duplicates(result.data)  # @TODO: debug, replace with link
+        # @TODO: update cache
 
 
 if __name__ == '__main__':
