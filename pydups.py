@@ -288,6 +288,18 @@ class DB(object):
 
         self.data = data
 
+    def filter_data(self, dataroot):
+        prefix = os.path.abspath(dataroot)
+
+        cache = self.data  # shortcut
+        data = {}
+
+        for key, val in cache.item():
+            if key.startswith(prefix):
+                data[key] = val
+
+        return data
+
     def update(self, dataroot, ignore_patterns=IGNORE_PATTERNS,
                checksum=False):
         cache = self.data  # shortcut
@@ -296,16 +308,17 @@ class DB(object):
         for entry in scantree(dataroot, ignore_patterns):
             if entry.is_file(follow_symlinks=False):
                 entry = DirEntryStore.from_entry(entry)
-                if entry.path in cache:
-                    cache_entry = data[entry.path]
+                key = os.path.abspath(entry.path)
+                if key in cache:
+                    cache_entry = cache.data[key]
                     if entry == cache_entry.direntry:
                         if ((checksum and cache_entry.md5 is not None) or
                                 not checksum):
-                            data[entry.path] = cache_entry
+                            data[key] = cache_entry
                             continue
 
                 md5 = md5_key(entry) if checksum else None
-                data[entry.path] = DbEntry(entry, md5)
+                data[key] = DbEntry(entry, md5)
 
         self.clean(dataroot)
         self.data.update(data)
@@ -316,9 +329,10 @@ class DB(object):
         if path is None:
             self.data.reset()
         else:
+            prefix = os.path.abspath(path)
             cache = self.data  # shortcut
             for key in cache:
-                if key.startswith(path):
+                if key.startswith(prefix):
                     del cache[key]
 
     def load(self, cachefile, fmt='pickle'):
@@ -327,6 +341,7 @@ class DB(object):
                 cache = pickle.load(fd)
         elif fmt == 'json':
             import json
+
             with open(cachefile, 'rb') as fd:
                 cache = json.load(fd)
         else:
@@ -345,35 +360,49 @@ class DB(object):
                 pickle.dump(cache, fd, protocol=0)
         elif fmt == 'json':
             import json
+
             with open(cachefile, 'wb') as fd:
                 json.dump(cache, fd)
         else:
             raise ValueError('invalid format: {!r}'.format(fmt))
+
+    @staticmethod
+    def _make_key(dbentry, keyfunc):
+        if keyfunc == md5_key:
+            key = dbentry.md5
+        else:
+            key = keyfunc(dbentry.direntry)
+        return key
+
+    def find_duplicates(self, keyfunc):
+        scanned_files = len(self.data)
+
+        # popilate the data structure
+        data = defaultdict(list)
+        for dbentry in self.data.values():
+            entry = dbentry.direntry
+            if entry.is_file(follow_symlinks=False):
+                k = self._make_key(dbentry, keyfunc)
+                data[k].append(entry)
+
+        # remove non duplicates
+        for key in list(data.keys()):  # note: copy keys
+            val = data[key]
+            if len(val) < 2:
+                del data[key]
+
+        return DuplicateScanResult(data, scanned_files, keyfunc.__name__)
 
 
 def scan_duplicates(dataroot, keyfunc=name_key,
                     ignore_patterns=IGNORE_PATTERNS):
 
     checksum = True if keyfunc is md5_key else False
+
     db = DB()
     db.update(dataroot, ignore_patterns, checksum)
 
-    scanned_files = len(db.data)
-
-    data = defaultdict(list)
-    for dbentry in db.data.values():
-        entry = dbentry.direntry
-        if entry.is_file(follow_symlinks=False):
-            k = keyfunc(entry)
-            data[k].append(entry)
-
-    # remove non duplicates
-    for key in list(data.keys()):  # note: copy keys
-        val = data[key]
-        if len(val) < 2:
-            del data[key]
-
-    return DuplicateScanResult(data, scanned_files, keyfunc.__name__)
+    return db.find_duplicates(keyfunc)
 
 
 def clean_duplicates(duplicates):
