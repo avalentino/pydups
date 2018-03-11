@@ -152,7 +152,6 @@ class DuplicateScanResult(object):
         return s
 
     def format_data(self, indent=2, fmt='json'):
-
         if fmt == 'json':
             data = OrderedDict(
                 (str(k), [e.path for e in self.data[k]])
@@ -308,11 +307,11 @@ def load_cache(cachefile, dataroot, keytype):
 
 
 def save_cache(cachefile, scan_result, dataroot):
+    cache = defaultdict(dict)
+
     if os.path.exists(cachefile):
         with open(cachefile, 'rb') as fd:
-            cache = pickle.load(fd)
-    else:
-        cache = {}
+            cache.update(pickle.load(fd))
 
     data = {}
     for key, value in scan_result.data.items():
@@ -321,10 +320,7 @@ def save_cache(cachefile, scan_result, dataroot):
 
     dataroot = os.path.abspath(dataroot)
     keytype = scan_result.keytype
-    if dataroot not in cache:
-        cache[dataroot] = {keytype: scan_result}
-    else:
-        cache[dataroot][keytype] = scan_result
+    cache[dataroot][keytype] = scan_result
 
     with open(cachefile, 'wb') as fd:
         pickle.dump(cache, fd, protocol=0)
