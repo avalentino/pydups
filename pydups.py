@@ -211,7 +211,7 @@ class DirEntryStore(object):
         self._is_dir = is_dir
         self._is_file = is_file
         self._is_symlink = is_symlink
-        self._stat = statresult
+        self._stat = os.stat_result(statresult)
 
     def is_dir(self, follow_symlinks=True):
         if follow_symlinks is True:
@@ -247,7 +247,7 @@ class DirEntryStore(object):
         return dict(
             name=self.name, path=self.path, is_dir=self._is_dir,
             is_file=self._is_file, is_symlink=self._is_symlink,
-            statresult=self._statresult,
+            statresult=self._stat,
         )
 
     def __eq__(self, other):
@@ -257,7 +257,8 @@ class DirEntryStore(object):
             other._is_dir == self._is_dir and
             other._is_file == self._is_file and
             other._is_symlink == self._is_symlink and
-            other._statresult == self._statresult
+            other._stat.st_size == self._stat.st_size and
+            other._stat.st_mtime == self._stat.st_mtime
         )
 
 
@@ -310,7 +311,7 @@ class DB(object):
                 entry = DirEntryStore.from_entry(entry)
                 key = os.path.abspath(entry.path)
                 if key in cache:
-                    cache_entry = cache.data[key]
+                    cache_entry = cache[key]
                     if entry == cache_entry.direntry:
                         if ((checksum and cache_entry.md5 is not None) or
                                 not checksum):
@@ -331,7 +332,7 @@ class DB(object):
         else:
             prefix = os.path.abspath(path)
             cache = self.data  # shortcut
-            for key in cache:
+            for key in list(cache):
                 if key.startswith(prefix):
                     del cache[key]
 
@@ -342,17 +343,17 @@ class DB(object):
         elif fmt == 'json':
             import json
 
-            with open(cachefile, 'rb') as fd:
+            with open(cachefile, 'r') as fd:
                 cache = json.load(fd)
         else:
             raise ValueError('invalid format: {!r}'.format(fmt))
 
-        for key, val in cache:
+        for key, val in cache.items():
             self.data[key] = DbEntry(**val)
 
     def save(self, cachefile, fmt='pickle'):
         cache = {}
-        for key, val in self.data:
+        for key, val in self.data.items():
             cache[key] = val.to_dict()
 
         if fmt == 'pickle':
@@ -361,8 +362,8 @@ class DB(object):
         elif fmt == 'json':
             import json
 
-            with open(cachefile, 'wb') as fd:
-                json.dump(cache, fd)
+            with open(cachefile, 'w') as fd:
+                json.dump(cache, fd, indent='  ')
         else:
             raise ValueError('invalid format: {!r}'.format(fmt))
 
@@ -375,8 +376,6 @@ class DB(object):
         return key
 
     def find_duplicates(self, keyfunc):
-        scanned_files = len(self.data)
-
         # popilate the data structure
         data = defaultdict(list)
         for dbentry in self.data.values():
@@ -391,16 +390,16 @@ class DB(object):
             if len(val) < 2:
                 del data[key]
 
-        return DuplicateScanResult(data, scanned_files, keyfunc.__name__)
+        return DuplicateScanResult(data, len(self.data), keyfunc.__name__)
 
 
 def scan_duplicates(dataroot, keyfunc=name_key,
                     ignore_patterns=IGNORE_PATTERNS):
 
-    checksum = True if keyfunc is md5_key else False
+    compute_checksum = True if keyfunc is md5_key else False
 
     db = DB()
-    db.update(dataroot, ignore_patterns, checksum)
+    db.update(dataroot, ignore_patterns, compute_checksum)
 
     return db.find_duplicates(keyfunc)
 
@@ -408,6 +407,7 @@ def scan_duplicates(dataroot, keyfunc=name_key,
 def clean_duplicates(duplicates):
     for val in duplicates.values():
         if len(val) < 2:
+            logging.warning('not nuplicate entry for {!r}'.format(val))
             continue
 
         src = val[0]
@@ -418,60 +418,6 @@ def clean_duplicates(duplicates):
                 os.remove(dst)
             relative_src = os.path.relpath(src, os.path.dirname(dst))
             os.symlink(relative_src, dst)
-
-
-class InvalidCacheError(RuntimeError):
-    pass
-
-
-# Cache structure
-#
-# cache = {
-#   'dataroot1': {
-#       'keytype1': data1,  # dict(key1=DirEntryStore(), ...)
-#       'keytype2': data1,
-#       ...
-#   }
-#   'dataroot2': {
-#       'keytype1': data1,
-#       ...
-#   }
-#   ...
-# }
-
-
-def load_cache(cachefile, dataroot, keytype):
-    with open(cachefile, 'rb') as fd:
-        cache = pickle.load(fd)
-
-    dataroot = os.path.abspath(dataroot)    # @TODO: check
-
-    try:
-        return cache[dataroot][keytype]
-    except KeyError as ex:
-        raise InvalidCacheError(
-            'unable to get cache data for dataroot %r and keytype %r' % (
-                dataroot, keytype))
-
-
-def save_cache(cachefile, scan_result, dataroot):
-    cache = defaultdict(dict)
-
-    if os.path.exists(cachefile):
-        with open(cachefile, 'rb') as fd:
-            cache.update(pickle.load(fd))
-
-    data = {}
-    for key, value in scan_result.data.items():
-        data[key] = [DirEntryStore.from_entry(entry) for entry in value]
-    scan_result.data = data
-
-    dataroot = os.path.abspath(dataroot)
-    keytype = scan_result.keytype
-    cache[dataroot][keytype] = scan_result
-
-    with open(cachefile, 'wb') as fd:
-        pickle.dump(cache, fd, protocol=0)
 
 
 def get_parser():
@@ -566,32 +512,32 @@ def main():
     else:
         cachefile = None
 
-    result = None
+    # @TODO: set via command line
+    cachefmt = 'json'
+
+    db = DB()
     if cachefile is not None and os.path.exists(cachefile):
-        try:
-            logging.info('loading data from %s', cachefile)
-            result = load_cache(cachefile, dataroot, keytype)
-        except InvalidCacheError:
-            result = None
-            logging.warning('invalid cache, perform regular scan')
+        logging.info('loading data from %s', cachefile)
+        db.load(cachefile, fmt=cachefmt)  # @TODO: implement auto-detection
 
-    if result is None:
-        logging.info('scanning %s', dataroot)
-        result = scan_duplicates(dataroot, args.key, ignore_patterns)
-        logging.info('%d scanned files', result.scanned_files)
+    logging.info('scanning %s', dataroot)
+    compute_checksum = True if keytype == md5_key.__name__ else False
+    db.update(dataroot, ignore_patterns, compute_checksum)
+    logging.info('%d scanned files', len(db.data))
 
-        if cachefile:
-            logging.info('saving %s ...', cachefile)
-            save_cache(cachefile, result, dataroot)
-            logging.info('%s correcly saved', cachefile)
+    if cachefile is not None:
+        logging.info('saving %s ...', cachefile)
+        db.save(cachefile, fmt=cachefmt)
+        logging.info('%s correcly saved', cachefile)
 
+    result = db.find_duplicates(args.key)
     logging.info('%d duplicate files found', result.duplicate_count())
 
     if args.compute_size:
         size = result.duplicate_size()
         logging.info('duplicate file size: %s', size2str(size))
 
-    if args.list_files:
+    if result.duplicate_count() and args.list_files:
         logging.info('duplicates in "%s"', dataroot)
         data = result.format_data(fmt=args.format)
         if args.output is not None:
