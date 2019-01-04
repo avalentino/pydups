@@ -78,51 +78,6 @@ try:
 except ImportError:
     argcomplete = False
 
-try:
-    from size2str import size2str
-except ImportError:
-    def size2str(size):
-        '''String representation of memory size
-
-        Gets a size in bytes and return the its string
-        representation using appropriate units.
-
-        Examples::
-
-            >>> size2str(1.3 * 1024**5)
-            '1.30 PB'
-
-            >>> size2str(1.3 * 1024)
-            '1.30 KB'
-
-            >>> size2str(18)
-            '18.00 Bytes'
-
-            >>> size2str(0.3)
-            '0.30 Bytes'
-
-        '''
-
-        units = (
-            'Bytes',
-            'KB',
-            'MB',
-            'GB',
-            'TB',
-            'PB',
-        )
-
-        multiplier = 1024
-        units_length = len(units) - 1
-
-        index = int(math.log(size, multiplier)) if size > 0 else 0
-        if index > units_length:
-            index = units_length
-
-        result = size / (multiplier ** index)
-
-        return '{:.2f} {}'.format(result, units[index])
-
 
 __version__ = '1.1.0.dev0'
 
@@ -134,6 +89,49 @@ IGNORE_PATTERNS = (
 )
 
 DEBUG = False
+
+
+def size2str(size):
+    '''String representation of memory size
+
+    Gets a size in bytes and return the its string
+    representation using appropriate units.
+
+    Examples::
+
+        >>> size2str(1.3 * 1024**5)
+        '1.30 PB'
+
+        >>> size2str(1.3 * 1024)
+        '1.30 KB'
+
+        >>> size2str(18)
+        '18.00 Bytes'
+
+        >>> size2str(0.3)
+        '0.30 Bytes'
+
+    '''
+
+    units = (
+        'Bytes',
+        'KB',
+        'MB',
+        'GB',
+        'TB',
+        'PB',
+    )
+
+    multiplier = 1024
+    units_length = len(units) - 1
+
+    index = int(math.log(size, multiplier)) if size > 0 else 0
+    if index > units_length:
+        index = units_length
+
+    result = size / (multiplier ** index)
+
+    return '{:.2f} {}'.format(result, units[index])
 
 
 def scantree(path, follow_symlinks=False, ignore_patterns=IGNORE_PATTERNS):
