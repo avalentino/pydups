@@ -9,6 +9,7 @@ import re
 import sys
 import json
 import math
+import stat
 import pprint
 import shutil
 import fnmatch
@@ -203,6 +204,19 @@ def md5_key(entry):
 
 
 class DirEntryStore(object):
+    """Data store class for os.DirEntry information.
+
+    DirEntryStore is an instantiable class that provides same interface
+    of os.DirEntry.
+
+    The main difference in the interface is represented by the `__eq__`
+    method.
+
+    Additionally DirEntryStore also provide methode for initialization
+    form different object types and to export data into a dictionary.
+
+    """
+
     __slots__ = ['name', 'path', '_is_dir', '_is_file', '_is_symlink', '_stat']
 
     def __init__(self, name, path, is_dir, is_file, is_symlink, statresult):
@@ -213,42 +227,53 @@ class DirEntryStore(object):
         self._is_symlink = is_symlink
         self._stat = os.stat_result(statresult)
 
-    def is_dir(self, follow_symlinks=True):
-        if follow_symlinks is True:
-            raise ValueError('follow_symlinks=True is not supported')
+    def inode(self):
+        """'Return inode of the entry."""
+
+        return self._stat.st_ino
+
+    def _check_follow_symlinks(func):
+        @functools.wraps(func)
+        def wrapper(self, **kwargs):
+            if 'follow_symlinks' in kwargs:
+                follow_symlinks = kwargs.pop('follow_symlinks')
+                if follow_symlinks is True:
+                    warnings.warn(
+                        "'follow_symlinks' ignored by {}.stat()".format(
+                            self.__class__.__name__), stacklevel=2)
+
+            return func(self, **kwargs)
+
+        return wrapper
+
+    @_check_follow_symlinks
+    def is_dir(self, follow_symlinks=None):
+        """Return True if the entry is a directory, cached per entry."""
+
         return self._is_dir
 
-    def is_file(self, follow_symlinks=True):
-        if follow_symlinks is True:
-            raise ValueError('follow_symlinks=True is not supported')
+    @_check_follow_symlinks
+    def is_file(self, follow_symlinks=None):
+        """Return True if the entry is a file, cached per entry."""
+
         return self._is_file
 
     def is_symlink(self):
+        """Return True if the entry is a symbolic link, cached per entry."""
+
         return self._is_symlink
 
-    def stat(self, **kwargs):
-        if 'follow_symlinks' in kwargs:
-            warnings.warn("'follow_symlinks' ignored by DirEntryStore.stat()")
-            kwargs.pop('follow_symlinks')
-
-        if len(kwargs) > 0:
-            key = list(kwargs)[0]
-            raise TypeError(
-                'stat() got an unexpected keyword argument %r' % key)
+    @_check_follow_symlinks
+    def stat(self, follow_symlinks=None):
+        """Return stat_result object for the entry, cached per entry."""
 
         return self._stat
 
-    @classmethod
-    def from_entry(cls, entry):
-        return cls(entry.name, entry.path, entry.is_dir(), entry.is_file(),
-                   entry.is_symlink(), entry.stat())
+    def __fspath__(self):
+        return self.path
 
-    def to_dict(self):
-        return dict(
-            name=self.name, path=self.path, is_dir=self._is_dir,
-            is_file=self._is_file, is_symlink=self._is_symlink,
-            statresult=self._stat,
-        )
+    def __repr__(self):
+        return '<{} {!r}>'.format(self.__class__.__name__, self.name)
 
     def __eq__(self, other):
         return (
@@ -259,6 +284,42 @@ class DirEntryStore(object):
             other._is_symlink == self._is_symlink and
             other._stat.st_size == self._stat.st_size and
             other._stat.st_mtime == self._stat.st_mtime
+        )
+
+    @classmethod
+    def from_entry(cls, entry):
+        """Initialize an DirEntryStore from another DirEntry instance."""
+
+        return cls(entry.name, entry.path, entry.is_dir(), entry.is_file(),
+                   entry.is_symlink(), entry.stat())
+
+    @classmethod
+    def from_path(cls, path):
+        """Initialize an DirEntryStore from a path."""
+
+        # @COMPATIBILITY: os.fspahth is new in Python 3.6
+        if hasattr(os, 'fspath'):
+            path = os.fspath(path)
+        elif hasattr(path, 'parts'):
+            # @COMPATIBILITY: pathliv is new in Python 3.4
+            path = str(path)
+
+        st = os.stat(path)
+        return cls(
+            os.path.basename(path),
+            path,
+            stat.S_ISDIR(st.st_mode),
+            stat.S_ISREG(st.st_mode),
+            stat.S_ISLNK(st.st_mode),
+            st)
+
+    def to_dict(self):
+        """Export the DirEntryStore instance into a dict."""
+
+        return dict(
+            name=self.name, path=self.path, is_dir=self._is_dir,
+            is_file=self._is_file, is_symlink=self._is_symlink,
+            statresult=self._stat,
         )
 
 
