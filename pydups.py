@@ -30,6 +30,15 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+"""Search all duplicate files in the specified directories.
+
+Symbolic links are always ignored.
+
+By default duplicte file names are searched but the criterion can
+be customized using the "-k" ("--key") parameter.
+
+"""
+
 from __future__ import print_function
 
 import io
@@ -516,11 +525,7 @@ def clean_duplicates(duplicates, replace_with_links=False):
 
 def get_parser():
     parser = argparse.ArgumentParser(
-        prog=PROG,
-        description='''Search all duplicate files in the specified directories.
-        Symbolic links are always ignored.
-        By default duplicte file names are searched but the criterion can
-        be customized using the "-k" ("--key") parameter''',
+        prog=PROG, description=__doc__,
         epilog='Copyright (C) 2016-2019 Antonio Valentino '
                '<antonio.valentino@tiscali.it>')
 
