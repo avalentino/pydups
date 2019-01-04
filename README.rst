@@ -3,7 +3,7 @@ pydups
 
 Find duplicate files in the specified directories.
 
-:copiright: 2016-2018 Antonio Valentino
+:copiright: 2016-2019 Antonio Valentino
 
 
 Usage
