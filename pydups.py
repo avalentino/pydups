@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+# PYTHON_ARGCOMPLETE_OK
+
 # Copyright (c) 2016-2019, Antonio Valentino
 # All rights reserved.
 #
@@ -70,6 +72,11 @@ try:
     from os import scandir
 except ImportError:
     from scandir import scandir  # use scandir PyPI module on Python < 3.5
+
+try:
+    import argcomplete
+except ImportError:
+    argcomplete = False
 
 try:
     from size2str import size2str
@@ -568,6 +575,9 @@ def get_parser():
 
     parser.add_argument(
         'dataroot', help='path to the root of the directory tree to scan')
+
+    if argcomplete:
+        argcomplete.autocomplete(parser)
 
     return parser
 
