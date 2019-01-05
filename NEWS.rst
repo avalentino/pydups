@@ -9,6 +9,8 @@ PyDups 1.1.0 (under development)
 * Improved exception handling: all exceptions are now caught and logged.
 * PyDups command line tool now support auto-completion via
   `argcomplete <https://pypi.org/project/argcomplete/>`_.
+* Drop support for Python 3.3 (it is not supported by the 
+  `scandir <https://pypi.org/project/scandir/>`_ backport module).
 * Improved `setup.py` (dependency management).
 * Added requirements file.
 * Improved testing:
