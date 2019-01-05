@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import sys
 import shutil
 import tempfile
 import unittest
@@ -25,7 +26,10 @@ def create_tree(root, tree):
             path.touch()
         elif isinstance(data, int):
             size = data
-            path.write_bytes(bytes(size))
+            # NOTE: bytes(size) does not have the same behavior of
+            #       bytearray(size) in Python 2.X
+            data = bytes(bytearray(size))
+            path.write_bytes(data)
         elif isinstance(data, bytes):
             path.write_bytes(data)
         elif isinstance(data, str):
