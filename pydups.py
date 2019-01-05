@@ -612,14 +612,14 @@ def parse_args(args=None, namespace=None, parser=None):
     return args
 
 
-def main():
+def main(argv=None):
     logging.basicConfig(
         level=logging.INFO, format='%(message)s', stream=sys.stdout)
 
     ret = EX_OK
 
     try:
-        args = parse_args()
+        args = parse_args(argv)
         dataroot = args.dataroot
         keytype = args.key.__name__
         ignore_patterns = IGNORE_PATTERNS   # @TODO: set via command line
