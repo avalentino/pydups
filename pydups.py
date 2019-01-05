@@ -74,6 +74,13 @@ except ImportError:
     from scandir import scandir  # use scandir PyPI module on Python < 3.5
 
 try:
+    from os import EX_OK
+except ImportError:
+    EX_OK = 0
+EX_FAILURE = -1
+
+
+try:
     import argcomplete
 except ImportError:
     argcomplete = False
@@ -609,55 +616,67 @@ def main():
     logging.basicConfig(
         level=logging.INFO, format='%(message)s', stream=sys.stdout)
 
-    args = parse_args()
-    dataroot = args.dataroot
-    keytype = args.key.__name__
-    ignore_patterns = IGNORE_PATTERNS   # @TODO: set via command line
+    ret = EX_OK
 
-    if args.cache is not None:
-        cachefile = args.cache
-    else:
-        cachefile = None
+    try:
+        args = parse_args()
+        dataroot = args.dataroot
+        keytype = args.key.__name__
+        ignore_patterns = IGNORE_PATTERNS   # @TODO: set via command line
 
-    # @TODO: set via command line
-    cachefmt = 'json'
-
-    db = DB()
-    if cachefile is not None and os.path.exists(cachefile):
-        logging.info('loading data from %s', cachefile)
-        db.load(cachefile, fmt=cachefmt)  # @TODO: implement auto-detection
-
-    logging.info('scanning %s', dataroot)
-    compute_checksum = True if keytype == md5_key.__name__ else False
-    db.update(dataroot, ignore_patterns, compute_checksum)
-    logging.info('%d scanned files', len(db.data))
-
-    if cachefile is not None:
-        logging.info('saving %s ...', cachefile)
-        db.save(cachefile, fmt=cachefmt)
-        logging.info('%s correcly saved', cachefile)
-
-    result = db.find_duplicates(args.key)
-    logging.info('%d duplicate files found', result.duplicate_count())
-
-    if args.compute_size:
-        size = result.duplicate_size()
-        logging.info('duplicate file size: %s', size2str(size))
-
-    if result.duplicate_count() and args.list_files:
-        logging.info('duplicates in "%s"', dataroot)
-        data = result.format_data(fmt=args.format)
-        if args.output is not None:
-            with open(args.output, 'w') as fd:
-                fd.write(data)
-                fd.write('\n')
+        if args.cache is not None:
+            cachefile = args.cache
         else:
-            print(data)
+            cachefile = None
 
-    if args.clean:
-        clean_duplicates(result.data)  # @TODO: debug, replace with link
-        # @TODO: update cache
+        # @TODO: set via command line
+        cachefmt = 'json'
+
+        db = DB()
+        if cachefile is not None and os.path.exists(cachefile):
+            logging.info('loading data from %s', cachefile)
+            db.load(cachefile, fmt=cachefmt)  # @TODO: implement auto-detection
+
+        logging.info('scanning %s', dataroot)
+        compute_checksum = True if keytype == md5_key.__name__ else False
+        db.update(dataroot, ignore_patterns, compute_checksum)
+        logging.info('%d scanned files', len(db.data))
+
+        if cachefile is not None:
+            logging.info('saving %s ...', cachefile)
+            db.save(cachefile, fmt=cachefmt)
+            logging.info('%s correcly saved', cachefile)
+
+        result = db.find_duplicates(args.key)
+        logging.info('%d duplicate files found', result.duplicate_count())
+
+        if args.compute_size:
+            size = result.duplicate_size()
+            logging.info('duplicate file size: %s', size2str(size))
+
+        if result.duplicate_count() and args.list_files:
+            logging.info('duplicates in "%s"', dataroot)
+            data = result.format_data(fmt=args.format)
+            if args.output is not None:
+                with open(args.output, 'w') as fd:
+                    fd.write(data)
+                    fd.write('\n')
+            else:
+                print(data)
+
+        if args.clean:
+            clean_duplicates(result.data)  # @TODO: debug, replace with link
+            # @TODO: update cache
+
+    except Exception as exc:
+        logging.critical(
+            'unexpected exception caught: {!r} {}'.format(
+                type(exc).__name__, exc))
+        logging.debug('stacktrace:', exc_info=True)
+        ret = EX_FAILURE
+
+    return ret
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
