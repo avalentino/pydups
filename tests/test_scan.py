@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import os
-import sys
 import shutil
 import tempfile
 import unittest
@@ -52,7 +50,7 @@ class _BaseTestScanDuplicates(object):
     # KEYFUNC = pydups.name_key
 
     def setUp(self):
-        prefix=self.__class__.__name__ + '_'
+        prefix = self.__class__.__name__ + '_'
         self.root = tempfile.mkdtemp(prefix=prefix)
         create_tree(self.root, self.TREE)
 
@@ -84,7 +82,6 @@ class TestScanDuplicatesName01(_BaseTestScanDuplicates, unittest.TestCase):
         keyfunc = pydups.md5_key
         res = pydups.scan_duplicates(self.root, keyfunc)
         self.assertEqual(res.duplicate_count(), self.MD5_KEY_DUPS)
-
 
 
 class TestScanDuplicates02(TestScanDuplicatesName01, unittest.TestCase):

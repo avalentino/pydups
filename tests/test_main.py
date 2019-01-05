@@ -1,18 +1,15 @@
 # -*- coding: utf-8 -*-
 
-import os
 import sys
 import unittest
 import subprocess
+
+import pydups
 
 if sys.version_info < (3, 0):
     from io import BytesIO as StreamType
 else:
     from io import StringIO as StreamType
-
-
-import pydups
-
 
 try:
     from contextlib import redirect_stdout, redirect_stderr
