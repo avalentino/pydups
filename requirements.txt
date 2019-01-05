@@ -1,0 +1,4 @@
+scandir     # python < 3.3
+
+# tests
+pathlib2    # Python < 3.5
