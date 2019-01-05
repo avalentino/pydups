@@ -37,7 +37,7 @@ def create_tree(root, tree):
                 'unable to create a tree item for {!r}'.format(data))
 
 
-class _BaseTestScanDuplicates(unittest.TestCase):
+class _BaseTestScanDuplicates(object):
     # TREE = {
     #     'aaa.txt': 'aaa',
     #     'bbb.txt': 'bbb',
@@ -56,8 +56,7 @@ class _BaseTestScanDuplicates(unittest.TestCase):
         shutil.rmtree(self.root)
 
 
-
-class TestScanDuplicatesName01(_BaseTestScanDuplicates):
+class TestScanDuplicatesName01(_BaseTestScanDuplicates, unittest.TestCase):
     TREE = {
         'aaa.txt': 'aaa',
         'bbb.txt': 'bbb',
@@ -84,7 +83,7 @@ class TestScanDuplicatesName01(_BaseTestScanDuplicates):
 
 
 
-class TestScanDuplicates02(TestScanDuplicatesName01):
+class TestScanDuplicates02(TestScanDuplicatesName01, unittest.TestCase):
     TREE = {
         'aaa.txt': None,
         'bbb.txt': None,
@@ -96,7 +95,7 @@ class TestScanDuplicates02(TestScanDuplicatesName01):
     MD5_KEY_DUPS = 1
 
 
-class TestScanDuplicates03(TestScanDuplicatesName01):
+class TestScanDuplicates03(TestScanDuplicatesName01, unittest.TestCase):
     TREE = {
         'aaa.txt': None,
         'bbb.txt': None,
@@ -114,7 +113,7 @@ class TestScanDuplicates03(TestScanDuplicatesName01):
     MD5_KEY_DUPS = 2
 
 
-class TestScanDuplicates04(TestScanDuplicatesName01):
+class TestScanDuplicates04(TestScanDuplicatesName01, unittest.TestCase):
     TREE = {
         'aaa.txt': 'aaa',
         'bbb.txt': None,
