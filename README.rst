@@ -1,9 +1,12 @@
-pydups
+PyDups
 ======
 
 Find duplicate files in the specified directories.
 
 :copiright: 2016-2019 Antonio Valentino
+
+.. image:: https://travis-ci.org/avalentino/pydups.svg?branch=master
+    :target: https://travis-ci.org/avalentino/pydups
 
 
 Usage

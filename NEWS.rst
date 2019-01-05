@@ -15,7 +15,9 @@ PyDups 1.1.0 (under development)
 
   - added new tests
   - reworked existing tests to be fully compatible with
-    `pytest <https://pytest.org>`_.
+    `pytest <https://pytest.org>`_
+  - testing enabled on `Travis <https://travis-ci.org/>`_
+    (see https://travis-ci.org/avalentino/pydups).
 
 
 PyDups 1.0.0 (25/22/2017)
