@@ -8,7 +8,7 @@ import unittest
 try:
     import pathlib
 except ImportError:
-    import patlib2 as pathlib
+    import pathlib2 as pathlib
 
 
 import pydups
