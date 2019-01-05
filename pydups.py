@@ -416,7 +416,7 @@ class DB(object):
         cache = self.data  # shortcut
         data = {}
 
-        for entry in scantree(dataroot, ignore_patterns):
+        for entry in scantree(dataroot, ignore_patterns=ignore_patterns):
             if entry.is_file(follow_symlinks=False):
                 entry = DirEntryStore.from_entry(entry)
                 key = os.path.abspath(entry.path)
