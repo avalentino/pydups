@@ -59,14 +59,12 @@ import argparse
 import warnings
 import functools
 
-
 from collections import defaultdict, OrderedDict
 
 try:
     import cPickle as pickle
 except ImportError:
     import pickle
-
 
 try:
     from os import scandir
@@ -158,6 +156,7 @@ def scantree(path, follow_symlinks=False, ignore_patterns=IGNORE_PATTERNS):
             continue
 
         if entry.is_dir(follow_symlinks=follow_symlinks):
+            # @COMPATBILITY: "yeild form" is new in Python 3.3
             # yield from scantree(entry.path, follow_symlinks)
             for entry in scantree(entry.path, follow_symlinks):
                 yield entry

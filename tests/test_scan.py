@@ -141,5 +141,3 @@ class TestScanDuplicates04(TestScanDuplicatesName01):
         values = set(item.path for item in list(res.data.values())[0])
 
         self.assertEqual(dups, values)
-
-
