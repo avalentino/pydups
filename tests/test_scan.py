@@ -5,9 +5,9 @@ import tempfile
 import unittest
 
 try:
-    import pathlib
-except ImportError:
     import pathlib2 as pathlib
+except ImportError:
+    import pathlib
 
 
 import pydups
@@ -16,6 +16,7 @@ import pydups
 def create_tree(root, tree):
     root = pathlib.Path(root)
 
+    # NOTE: the 'exist_ok' keyword argument is new in Python 3.5
     root.mkdir(exist_ok=True)
 
     for name, data in tree.items():
