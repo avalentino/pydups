@@ -3,6 +3,7 @@
 
 import os
 import re
+import sys
 
 from setuptools import setup
 
@@ -16,6 +17,16 @@ def get_version():
         data,
         re.MULTILINE)
     return mobj.group('version')
+
+
+install_requires = []
+test_requires = []
+
+if sys.version_info < (3, 3):
+    install_requires.append('scandir')
+
+if sys.version_info < (3, 5):
+    install_requires.append('pathlib2')
 
 
 setup(
@@ -41,6 +52,8 @@ setup(
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
     ],
     keywords='utility duplicates',
     py_modules=["pydups"],
@@ -49,4 +62,7 @@ setup(
             'pydups=pydups:main',
         ],
     },
+    install_requires=install_requires,
+    tests_require=test_requires,
+    python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*',
 )
